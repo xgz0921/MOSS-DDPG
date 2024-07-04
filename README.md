@@ -1,10 +1,11 @@
+### Intro:
 MOSS-DDPG is short for Multi-observation Single-step deep deterministic policy gradient, a sensorless adaptive optics image metric optimization method based on the deep deterministic policy gradient algorithm.
 
 MOSS-DDPG optimizes the image quality by predicting the wavefront error formed by Zernike coefficients with 2*N+1 image acquisitions, where N is the number of Zernike modes used.
 
 The MOSS-DDPG implementation code is a PyTorch-based simulation environment.
 
-Files:
+### Files:
 
 **main.py:** main body for MOSS-DDPG training. 
 
@@ -30,5 +31,5 @@ Files:
 
 **functions.py** some functions.
 
-Core packages:
-torch, cupy
+### Core packages:
+pytorch, cupy
