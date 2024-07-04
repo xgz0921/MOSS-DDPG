@@ -29,3 +29,6 @@ Files:
 **training_visualization.py:** visualize training sessions.
 
 **functions.py** some functions.
+
+Core packages:
+torch, cupy
