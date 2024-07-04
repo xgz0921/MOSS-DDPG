@@ -1,1 +1,1 @@
-##This directory is to restore training history.
+This directory is to restore training history.
