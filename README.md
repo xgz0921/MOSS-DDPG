@@ -32,4 +32,4 @@ The MOSS-DDPG implementation code is a PyTorch-based simulation environment.
 **functions.py** some functions.
 
 ### Core packages:
-pytorch, cupy
+pytorch, cupy, Numpy
