@@ -33,3 +33,10 @@ The MOSS-DDPG implementation code is a PyTorch-based simulation environment.
 
 ### Core packages:
 pytorch, cupy, Numpy
+
+### An example of whole process - training and validation:
+1. select target images and put into **Test Images** folder.
+2. run **main.py**, training will start and be recorded in "Training History/date/time + training specs/records.txt".
+3. change the file path variable in **training_visualization.py** to view the training process.
+4. change the file path variable in **model_test.py** and run random tests, results will be saved in the same file path.
+5. change the file path variable in **rms_wfe_vis.py** to visualize the random test results of the RMS wavefront error.
