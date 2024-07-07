@@ -11,7 +11,7 @@ class CriticDataset(Dataset):
         self.rewards = rewards
 
     def __len__(self):
-        return len(self.labels)
+        return len(self.rewards)
 
     def __getitem__(self, idx):
         return (self.observations[idx], self.actions[idx], self.rewards[idx])
