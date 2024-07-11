@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 #Visualize the mean and standard deviation of the test results of models in RMS wavefront error.
-file_path = 'Training History/2024_07_04/02-09-27_12_m_0.15_bound_40000_stp_128_unts_0.00025_lrA_0.0025_LrC_8192_bs_0.06_noise_0.001_nsmin/'
+file_path = 'Path_to_training_history_directory'# Example: 'Training History/2024_07_04/12-09-27_12_m_0.15_bound_40000_stp_128_unts_0.00025_lrA_0.0025_LrC_8192_bs_0.06_noise_0.001_nsmin/'
 
 wfe_decreasing = np.load(file_path+'WFE_record_decreasing_ra.npy')
 wfe_decreasing = np.sqrt(np.sum(wfe_decreasing**2, axis=1))
