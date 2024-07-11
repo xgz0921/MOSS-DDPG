@@ -21,7 +21,7 @@ input_dim_obs = 13
 hidden_dim = 128
 actor_class = Networks.Actor(input_dim_obs,hidden_dim,n_modes,1)
 critic_class = Networks.Critic(input_dim_obs,hidden_dim,n_modes)
-file_path = 'Training History/2024_07_04/02-09-27_12_m_0.15_bound_40000_stp_128_unts_0.00025_lrA_0.0025_LrC_8192_bs_0.06_noise_0.001_nsmin/'
+file_path = 'Path_to_training_history_directory'# Example: 'Training History/2024_07_04/12-09-27_12_m_0.15_bound_40000_stp_128_unts_0.00025_lrA_0.0025_LrC_8192_bs_0.06_noise_0.001_nsmin/'
 actor = Networks.load_model(file_path+'actor',actor_class)
 critic = Networks.load_model(file_path+'critic',critic_class)
 critic.to(device)
