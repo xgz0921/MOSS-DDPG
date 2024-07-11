@@ -1,4 +1,4 @@
-### Script for DDPG memory
+### Script for MOSS-DDPG memory, originally from openai replay buffer, tailored for MOSS-DDPG
 ### @author : Guozheng Xu
 ### @date   : 2024-07-06
 ############################################################################
