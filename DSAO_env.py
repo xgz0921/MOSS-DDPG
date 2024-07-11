@@ -1,7 +1,7 @@
 ### Script for MOSS-DDPG simulation environment
 # Make sure target images are put into Test Images directory before running.
 ### @author : Guozheng Xu
-### @date   : 2024-07-06
+### @date   : 2024-07-11
 ############################################################################
 
 import gym, os
@@ -14,12 +14,11 @@ from cupyx.scipy.signal import convolve2d as convolve2d_gpu
 import random
 import matplotlib.pyplot as plt
 import matplotlib.image as imm
+from zernike import RZern #For generating Zernike polynomials
 
-from zernike import RZern
 
-
-co_range = 0.15 #Zernike coefficient range
-obs_bias = 0.5 # Observation bias
+co_range = 0.15 #Random Zernike coefficient range in micrometers
+obs_bias = 0.5 # Observation bias in micrometers
 cr_range = 1.0 
 wfres = 100 #Wavefront resolution
 n_modes = 12 #Number of target modes
@@ -27,6 +26,7 @@ n_modes_all = 25 #Number of all modes, including higher order noise modes
 
 #%% Set Zernike coefficient ranges in micrometers.
 #Coefficient ranges for training.
+# the 6th and 7th radial order Zernike coefficients are simulated for higher order noise.
 co_ranges_train = np.array([0.15, 0.15, 0.15,\
              0.15, 0.15, 0.15, 0.15,\
              .15, .15, .15, .15, .15,\
@@ -84,7 +84,7 @@ def load_images(directory_path):
     return processed_images
             
 trgtims = load_images('Test Images')
-img_size = 70 #Define the image size to be convolved with the PSF
+img_size = 50 #Define the image size to be convolved with the PSF
 #%%
 def create_folder_if_not_exists(folder_path):
     if not os.path.exists(folder_path):
@@ -124,13 +124,17 @@ class MOSSDDPG_Env(gym.Env):
         self.cr.ar = crDM_all
         self.ab.c = np.zeros(len(abDM_all))
         self.ab.ar = abDM_all
+        
+        #The following two parameters represent the scale for the pupil size - from a diameter of "wfres" pixels to (wfres/scaling_factor) pixels. Smaller pupil size result in
+        #smaller NA and larger Airy Disk Diameter. The two values represent relative ADD sizes for the two paths of the confocal SLO system, can be adjusted based on specific system parameters. 
         self.scaling_i = 2 #Factor for scaling illumination path PSF size.
         self.scaling_c = 3 #Factor for scaling detection path PSF size.
+        
         self.ADD_i = self.scaling_i*2.44 #Illumination path Airy Disk Diameter (Relative)
         self.ADD_c = self.scaling_c*2.44 #Detection path Airy Disk Diameter (Relative)
 
         # Define coordinates for wavefront, both illumination and detection path.
-        self.xpr_i = np.linspace(-self.scaling_i,self.scaling_i,wfres)
+        self.xpr_i = np.linspace(-self.scaling_i,self.scaling_i,wfres) 
         self.ypr_i = self.xpr_i
         self.xpr_c = np.linspace(-self.scaling_c,self.scaling_c,wfres)
         self.ypr_c = self.xpr_c
@@ -154,6 +158,7 @@ class MOSSDDPG_Env(gym.Env):
         fiber_size  = 0.07
         self.fiber = np.zeros((wfres,wfres))
         
+        #Generate a unit circle representing the fiber (approximation), radius = wfres*fiber_size
         self.fiber[(self.xv_c/self.scaling_c)**2+(self.yv_c/self.scaling_c)**2<=fiber_size**2] = 1
         
         
@@ -169,7 +174,8 @@ class MOSSDDPG_Env(gym.Env):
         self.rwd_record = [] #Record of rewards during training
         self.wfe_record = [] #Record of wavefront errors during training
         
-        self.trgtim = np.ones((img_size,img_size))
+        self.trgtim = np.random.uniform(0,255,(img_size,img_size)) #Initialize a random array as the target image
+        
     def step(self,action):
         
         self.trtem += 1                                 
@@ -186,15 +192,18 @@ class MOSSDDPG_Env(gym.Env):
             
         return [], reward, rst, {}
     
-    def reset(self,if_plot = True,training = True, ab_mode = 'Decreasing',obs_bias = obs_bias, new_ab = True):
+    def reset(self, training = True, ab_mode = 'Decreasing',obs_bias = obs_bias, new_ab = True):
         '''
         Reset function of DDPG. 
         training: determine if it is training or not. If training, use uniformly distributed Zernike coefficients to form random aberration.
         ab_mode: random aberration mode for testing, including "decreasing", "normal","uniform", and "nonoise"
         '''
         self.trtem = 0 #Set the number of steps performed per episode to zero
+        
         #Different aberration generation schemes, depending on training or not. (customizable)
         if new_ab:
+            #select a random part of a random image from the test images
+            self.max_intensity = 1 # Set the image intensity normalizer to 1 before acquiring the reference perfect image.
             trgtim_selected = random.choices(trgtims)[0]
             trgtim_sz = trgtim_selected.shape[0]
             start_x = random.randint(0, int(trgtim_sz-img_size))
@@ -204,8 +213,11 @@ class MOSSDDPG_Env(gym.Env):
             self.ab.c = np.zeros(n_modes_all)
             self.cr.c = np.zeros(n_modes_all)
             self.abSet()
-            self.flat = self.crSet() #Acquire the perfect image metric (flat wavefront)
-        
+            self.flat_img = self.crSet(save_fig = True) #Acquire the reference perfect image (flat wavefront)
+            self.max_intensity = np.max(self.flat_img.flatten()) # Get max image pixel intensity
+            self.flat_img = self.flat_img/self.max_intensity #Normalize perfect image intensity from 0 to 1
+            self.flat = sum(self.flat_img.flatten()**2) #Acquire the perfect image metric (flat wavefront)
+            
         if training:
             if new_ab:
             #Uniform aberration amount for all modes is used for training.
@@ -233,9 +245,11 @@ class MOSSDDPG_Env(gym.Env):
         #Acquire the metrics for 2N+1 observations: self.obs_r
         crDM_rst = tuple((-obs_bias,obs_bias,i)for i in range(4,n_modes+4)) #Form a tuple to generate observation matrix.
         
+        # Get the image metrics: self.obs_r
         [self.obs_r, temp] = zip(*[([self.crSet(md)], md) for md in [np.array([(ar[0]+ar[1])/2 for ar in crDM_rst])]+ \
 									  [np.insert(np.delete([(ar[0]+ar[1])/2 for ar in crDM_rst], i), i, n) \
 									   for i in range(len(crDM_rst)) for n in crDM_rst[i][0:2]]])
+        
         # Form the right side of the observation matrix :self.obs_c
         [temp, self.obs_c] = zip(*[([0], md) for md in [np.array([(ar[0]+ar[1])/2 for ar in crDM_obs_signs_only])]+ \
 									  [np.insert(np.delete([(ar[0]+ar[1])/2 for ar in crDM_obs_signs_only], i), i, n) \
@@ -244,7 +258,7 @@ class MOSSDDPG_Env(gym.Env):
         #Find the maximum of acquired metrics for 2N+1 observations for normalization.
         self.obs_r = np.array(self.obs_r)
         self.mxi = np.amax(self.obs_r)
-        self.mni = 0 #np.amin(self.obs_r) #Can also normalize with (x-min)/(max-min). If self.mni = 0, metrics are normalized like x/max
+        self.mni = 0 #np.amin(self.obs_r) #Can also normalize with (x-min)/(max-min). If self.mni = 0, metrics are normalized as x/max
 
         self.episode_count += 1 # Record a new episode.
         
@@ -252,7 +266,6 @@ class MOSSDDPG_Env(gym.Env):
     
     def SimInit(self):
         #Initialization of Zernike polynomials.
-        
         def setzer(n):
             c_i = np.zeros(self.cart_i.nk)
             c_i[n-1] = 1
@@ -267,18 +280,18 @@ class MOSSDDPG_Env(gym.Env):
         return
     
     def abSet(self):
-        #Set wavefront error.
-        self.ab.sim.wf_i = sum([self.sim.wflst_i[self.ab.ar[md][2]]*self.ab.c[md]*co_scales[md] for md in range(len(self.ab.ar))])
-        self.ab.sim.wf_c = sum([self.sim.wflst_c[self.ab.ar[md][2]]*self.ab.c[md]*co_scales[md] for md in range(len(self.ab.ar))])
+        #Set wavefront error, assuming illumination path and collection path have the same wavefront pattern. 
+        self.ab.sim.wf_i = sum([self.sim.wflst_i[self.ab.ar[md][2]]*self.ab.c[md]*co_scales[md] for md in range(len(self.ab.ar))]) #illumination path wavefront
+        self.ab.sim.wf_c = sum([self.sim.wflst_c[self.ab.ar[md][2]]*self.ab.c[md]*co_scales[md] for md in range(len(self.ab.ar))]) #collection (detection) path wavefront
         return
     
-    def crSet(self,*mdar):
+    def crSet(self,*mdar,save_fig = False):
         #Set wavefront correction signal (Zernike coefficients) to the DM
-        if mdar:
+        if mdar: #If given a target array of coefficients
             self.cr.c[0:n_modes] = np.squeeze(mdar) #Set the first 12 modes to desired values
-            self.cr.c[n_modes:] = np.zeros(n_modes_all-n_modes) # Set the noise modes to original values. 
+            self.cr.c[n_modes:] = np.zeros(n_modes_all-n_modes) # Do not correct for the noise modes.
             
-        return self.ZK(self.cr)
+        return self.ZK(self.cr,save_fig=save_fig)
 
     def conv_fiber(self,psf,fiber):
         #Convolution of PSF with Fiber
@@ -305,20 +318,25 @@ class MOSSDDPG_Env(gym.Env):
         h_c = abs(np.fft.fftshift(np.fft.fft2(psi_c)))**2
         h_c = h_c[int(0.5*wfres)-int(h_r*wfres):int(0.5*wfres)+int(h_r*wfres),int(0.5*wfres)-int(h_r*wfres):int(0.5*wfres)+int(h_r*wfres)]
         h_c_fiber = self.conv_fiber(h_c,self.fiber[47:53,47:53])#Convolution result between pinhole and detection path PSF
-        g = h_i * h_c_fiber/ 1e16 #1.555e16 #Effective PSF 'g' for the system. The number is to make the output image intensity falls in 0-1.
+        g = h_i * h_c_fiber #Effective PSF 'g' for the entire system. 
         g_cuda = cp.asarray(g) 
         trgtim_cuda = cp.asarray(self.trgtim)
-        fig_out = convolve2d_gpu(trgtim_cuda,g_cuda,mode='same').get() #Get image by convolution between target image and effective PSF
+        fig_out = convolve2d_gpu(trgtim_cuda,g_cuda,mode='same').get()/self.max_intensity #Get image by convolution between target image and effective PSF.
+        #The division number is to normalize the output image intensity based on the maximum intensity from a perfect image.
 
         self.dq.rdar = fig_out #Data acquired and saved to data acquisition class.
-        
-        #Photon and detector noise can be added, but will significantly slow down training process. Since transfer learning is required for in-situ application and simulation is just a
-        # transitional process, the noise addition can be omitted. Performances of the models are consistent with a reasonable amount of or without noise addition.
-        #self.dq.rdar = np.clip(np.random.poisson(self.dq.rdar*255)/255 + scipy.stats.truncnorm(0, 10, 0, .01).rvs(size = self.dq.rdar.shape), 0, 1)
-    
-        if save_fig:
+
+        # Photon and detector noise can be added, but will slow down training process. Since transfer learning is required for in-situ application and simulation is just a
+        # transitional process, the noise addition can be omitted. Performances of the models are consistent with (a reasonable amount) or without noise addition. This can be tuned for specific systems.
+        # In-situ noise is expected to be learned by transfer learning.
+        '''
+        if self.max_intensity != 1: #reference image intensity for normalization should be generated. if not, do not add noise
+            self.dq.rdar = np.clip(np.random.poisson(self.dq.rdar*255)/255 + scipy.stats.truncnorm(0, 1, 0, .02).rvs(size = self.dq.rdar.shape), 0, 1) #Add gaussian and poisson noise 
+        '''
+
+        if save_fig: #If this is true, return the actual figure, otherwise, return the metric
             return self.dq.rdar
-        #Return the sharpness reward.
+        #Return the sharpness metric.
         return sum(self.dq.rdar.flatten()**2)
     
     def expand_dims(self,In):
@@ -327,4 +345,14 @@ class MOSSDDPG_Env(gym.Env):
     	    
         return m
 
-
+# An example for using the simulation environment to get an image from the system with defined aberration and correction coefficients.
+'''
+env = MOSSDDPG_Env()
+env.reset(new_ab=True) #Reset to get random image and perfect reference
+env.ab.c = np.zeros(n_modes_all) #Define the aberration coefficients
+env.abSet() #Set the aberration
+env.cr.c = np.zeros(n_modes_all) #Define the correction coefficients 
+fig = env.crSet(save_fig=True) #Apply correction coefficients and acquire the image
+plt.imshow(fig) #plot the image
+plt.show()
+'''
