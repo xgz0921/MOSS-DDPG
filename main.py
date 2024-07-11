@@ -49,7 +49,7 @@ optimizer_critic = optim.Adam(critic.parameters(),lr = lr_critic)
 optimizer_actor = optim.Adam(actor.parameters(), lr=lr_actor)
 
 #%% Initialization of Memory
-expl_rpt = 15 #Number of random noise explorations repeated per step, enhanced exploration that is unique with single-step DDPG.
+expl_rpt = 15 #Number of random noise explorations repeated per step, enhanced exploration is unique with single-step DDPG.
 max_memo_size = num_episodes *expl_rpt 
 mem = Memory(max_size= max_memo_size)
 
@@ -88,7 +88,7 @@ for ep in range(num_episodes):
     action_cpu = action_cpu.cpu()
     action_numpy = action_cpu.numpy().reshape((n_modes,)) #Get action from actor
     
-    #Record the residual wavefront error in coefficients
+    #Record the residual wavefront error in coefficients (only for target modes, not higher order modes for noise)
     wfe_co = action_numpy+env.ab.c[0:n_modes] 
     env.wfe_record.append(wfe_co)
     
