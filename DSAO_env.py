@@ -129,9 +129,6 @@ class MOSSDDPG_Env(gym.Env):
         #smaller NA and larger Airy Disk Diameter. The two values represent relative ADD sizes for the two paths of the confocal SLO system, can be adjusted based on specific system parameters. 
         self.scaling_i = 2 #Factor for scaling illumination path PSF size.
         self.scaling_c = 3 #Factor for scaling detection path PSF size.
-        
-        self.ADD_i = self.scaling_i*2.44 #Illumination path Airy Disk Diameter (Relative)
-        self.ADD_c = self.scaling_c*2.44 #Detection path Airy Disk Diameter (Relative)
 
         # Define coordinates for wavefront, both illumination and detection path.
         self.xpr_i = np.linspace(-self.scaling_i,self.scaling_i,wfres) 
