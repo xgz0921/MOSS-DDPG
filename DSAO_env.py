@@ -84,7 +84,7 @@ def load_images(directory_path):
     return processed_images
             
 trgtims = load_images('Test Images')
-img_size = 50 #Define the image size to be convolved with the PSF
+img_size = 70 #Define the image size to be convolved with the PSF
 #%%
 def create_folder_if_not_exists(folder_path):
     if not os.path.exists(folder_path):
