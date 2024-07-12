@@ -32,7 +32,7 @@ The MOSS-DDPG implementation code is a PyTorch-based simulation environment.
 **functions.py** some functions.
 
 ### Core packages:
-pytorch, cupy, Numpy
+pytorch, cupy, numpy, zernike (for Zernike polynomial generation https://github.com/jacopoantonello/zernike)
 
 ### An example of whole process - training and validation:
 1. select target images and put into **Test Images** folder.
