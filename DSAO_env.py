@@ -68,8 +68,7 @@ def load_images(directory_path):
             gray_img = img
         else:  # Color image
             gray_img = img[:,:,0]*0.2989 + img[:,:,1]*0.587 + img[:,:,2]*0.114
-        resized_img = scipy.ndimage.zoom(gray_img, 1/2.56, order=1)
-        return np.array(resized_img)
+        return np.array(gray_img)
     
     # List to store processed images
     processed_images = []
@@ -86,19 +85,6 @@ def load_images(directory_path):
 trgtims = load_images('Test Images')
 img_size = 70 #Define the image size to be convolved with the PSF
 #%%
-def create_folder_if_not_exists(folder_path):
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-        print(f"Folder '{folder_path}' created.")
-    else:
-        print(f"Folder '{folder_path}' already exists.")
-def write_txt(file_path,content):
-    try:
-        file = open(file_path, 'a')
-        file.write(content)
-        file.close()
-    except FileNotFoundError as e:
-        print(f'An error occurred: {e}')
      
 class MOSSDDPG_Env(gym.Env):
     class cr: #Correction DM
