@@ -1,7 +1,7 @@
 ### Script for MOSS-DDPG simulation environment
 # Make sure target images are put into Test Images directory before running.
 ### @author : Guozheng Xu
-### @date   : 2024-07-11
+### @date   : 2024-07-12
 ############################################################################
 # Dependencies
 import gym, os
