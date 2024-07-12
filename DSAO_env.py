@@ -3,7 +3,7 @@
 ### @author : Guozheng Xu
 ### @date   : 2024-07-11
 ############################################################################
-
+# Dependencies
 import gym, os
 import numpy as np
 import scipy 
@@ -14,7 +14,14 @@ from cupyx.scipy.signal import convolve2d as convolve2d_gpu
 import random
 import matplotlib.pyplot as plt
 import matplotlib.image as imm
-from zernike import RZern #For generating Zernike polynomials
+
+from zernike import RZern #For generating Zernike polynomials. 
+"""
+This package 'https://github.com/jacopoantonello/zernike' implements the methods described in the following publication:
+Antonello, J., & Verhaegen, M. (2015). Modal-based phase retrieval for adaptive optics.
+J. Opt. Soc. Am. A, 32(6), 1160-1170. doi:10.1364/JOSAA.32.001160
+Available at: https://opg.optica.org/josaa/abstract.cfm?URI=josaa-32-6-1160
+"""
 
 
 co_range = 0.15 #Random Zernike coefficient range in micrometers
@@ -62,11 +69,17 @@ iobs = 2*len(abDM)+1 #number of observations
 
 #%% Load target images.
 def load_images(directory_path):
+    '''
+    directory_path: The path for all target images. 'Test Images' by default.
+    '''
     def process_image(file_path):
+        '''
+        file_path: the file path to individual image file.
+        '''
         img = imm.imread(file_path).astype('float')
         if len(img.shape) == 2:  # Grayscale image
             gray_img = img
-        else:  # Color image
+        else:  # Color image, convert to grayscale
             gray_img = img[:,:,0]*0.2989 + img[:,:,1]*0.587 + img[:,:,2]*0.114
         return np.array(gray_img)
     
@@ -82,19 +95,16 @@ def load_images(directory_path):
     
     return processed_images
             
-trgtims = load_images('Test Images')
-img_size = 70 #Define the image size to be convolved with the PSF
+trgtims = load_images('Test Images') #Load target images from the default directory 'Test Images'.
+img_size = 100 #Define the image size to be convolved with the PSF
 #%%
-     
+  
 class MOSSDDPG_Env(gym.Env):
     class cr: #Correction DM
-        
         class sim:pass
     class ab: #Aberration DM
         class sim:pass
-        
     class dq:pass #Data acquisition
-    
     class sim:pass #Simulated SAO ingredients
     
     def __init__(self):
@@ -137,27 +147,27 @@ class MOSSDDPG_Env(gym.Env):
         #Initialization
         self.SimInit() 
         
-        #Define pinhole (detection fiber) parameters. (Uniform circle for simplicity)
-        fiber_size  = 0.07
+        # Define pinhole (detection fiber) parameters. Uniform circle for simplicity.
+        # Determine suitable size based on the relative size between detection path ADD and fiber core diameter.
+        fiber_size  = 0.07 # This is an arbitrary parameter for the fiber size. The diameter of the unit circle is wfres*fiber_size.
         self.fiber = np.zeros((wfres,wfres))
         
-        #Generate a unit circle representing the fiber (approximation), radius = wfres*fiber_size
+        # Generate a unit circle representing the fiber (approximation), diameter = wfres*fiber_size
         self.fiber[(self.xv_c/self.scaling_c)**2+(self.yv_c/self.scaling_c)**2<=fiber_size**2] = 1
-        
-        
-        #Observation matrix components definition
+
+        # Observation matrix components definition
         self.obs_r = np.zeros((iobs,1))
         self.obs_c = np.zeros((iobs,1))
         
         # Other parameters
-        self.trtem = 0 #Count the steps already performed for each episode.
-        self.rststp = 1 #Steps before reset, single step per episode for this scenario.
-        self.step_count = 0 #Count total steps experienced
-        self.episode_count = 0 #Count number of episodes experienced
-        self.rwd_record = [] #Record of rewards during training
-        self.wfe_record = [] #Record of wavefront errors during training
+        self.trtem = 0 # Count the steps already performed for each episode.
+        self.rststp = 1 # Steps before reset, single step per episode for this scenario.
+        self.step_count = 0 # Count total steps experienced
+        self.episode_count = 0 # Count number of episodes experienced
+        self.rwd_record = [] # Record of rewards during training
+        self.wfe_record = [] # Record of wavefront errors during training
         
-        self.trgtim = np.random.uniform(0,255,(img_size,img_size)) #Initialize a random array as the target image
+        self.trgtim = np.random.uniform(0,255,(img_size,img_size)) # Initialize a random array as the target image
         
     def step(self,action):
         
