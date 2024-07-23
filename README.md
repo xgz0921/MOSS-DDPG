@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/doi/10.1364/BOE.528579.svg)](https://doi.org/10.1364/BOE.528579)
+
 ### Intro:
 MOSS-DDPG is short for Multi-observation Single-step deep deterministic policy gradient, a sensorless adaptive optics image metric optimization method based on the deep deterministic policy gradient algorithm.
 
